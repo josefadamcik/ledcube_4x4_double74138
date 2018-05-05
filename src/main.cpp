@@ -14,6 +14,8 @@
 
 int lastLevel = -1;
 
+
+
 void setup() {
     // put your setup code here, to run once:
     pinMode(PIN_A, OUTPUT);
@@ -30,10 +32,10 @@ void setup() {
     digitalWrite(PIN_C, LOW);
     digitalWrite(PIN_S, HIGH);
 
-    digitalWrite(PIN_L0, LOW);
-    digitalWrite(PIN_L1, LOW);
-    digitalWrite(PIN_L1, LOW);
-    digitalWrite(PIN_L1, LOW);
+    digitalWrite(PIN_L0, HIGH);
+    digitalWrite(PIN_L1, HIGH);
+    digitalWrite(PIN_L2, HIGH);
+    digitalWrite(PIN_L3, HIGH);
     //Serial.begin(9600);
 
 }
@@ -45,9 +47,9 @@ void setup() {
 void writeLed(int column, int level) {
         if (lastLevel != level) {
             if (lastLevel >= 0) {
-                digitalWrite(PIN_L0 + lastLevel, LOW);
+                digitalWrite(PIN_L0 + lastLevel, HIGH);
             }
-            digitalWrite(PIN_L0 + level, HIGH);
+            digitalWrite(PIN_L0 + level, LOW);
             lastLevel = level;
         }
         // Serial.print(column);
@@ -74,21 +76,29 @@ void writeLed(int column, int level) {
 void lightLevel(int l) {
     for (byte i = 0; i < 16; i++) {
         writeLed(i, l);
-        delay(1);
+        delayMicroseconds(1200);
     }
 }
 
-void loop() {
+void animateLevels() {
     for (byte l = 0; l < 4; l++) {
         for (int i = 0; i < 10; i++) {
             lightLevel(l);
         }
     }
+}
 
-    // writeLed(3,3);
-    // delay(1);
-    // writeLed(2,2);
-    // delay(1);
-    //writeLed(1,1);
-    
+void turnOff() {
+    if (lastLevel >= 0) {
+        digitalWrite(PIN_L0 + lastLevel, HIGH);
+        lastLevel = -1;
+    }
+}
+
+void loop() {
+    // writeLed(0,0);
+    // delay(2000);
+    animateLevels();
+    // turnOff();
+    // delay(2000);
 }
