@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "position.h"
 
 
 #define PIN_A 8
@@ -13,17 +14,17 @@
 
 #define SHOW_DELAY 1000
 
-struct Position {
-    byte column;
-    byte level;
-    Position(byte c, byte l) : column(c), level(l) {}
-};
+
+
+const byte levelCount = 4;
+const byte coulumnCount = 16;
+const byte sideLength = 4;
 
 enum Mode { Random, Snake };
 
 int lastLevel = -1;
-Mode currentMode = Random;
-int frameDuration = 200;
+Mode currentMode = Snake;
+int frameDuration = 500;
 
 
 boolean state[4][16] = {
@@ -114,8 +115,8 @@ const int randomMaxOn = 5;
 void changeStateRandomWithLimit() {
     boolean changed = false;
     do {
-        int l = random(0,4);
-        int c = random(0,16);
+        int l = random(0,levelCount);
+        int c = random(0,coulumnCount);
         if (randomOnCount < randomMaxOn  && !state[l][c])  {
             state[l][c] = true;
             randomOnCount++;
@@ -130,18 +131,78 @@ void changeStateRandomWithLimit() {
 
 
 
-byte snakeMaxLen = 3;
+const byte snakeMaxLen = 5;
 byte snakeLen = 0;
-Position snake[] = {Position(-1,-1), Position(-1,-1), Position(-1,-1)};
+Position snake[snakeMaxLen];
 
+void randomSnakeNextMove() {
+    //choose random direction
+    boolean validDerection = false;
+    Position newPosition;
+    while (!validDerection) {
+        newPosition = snake[0];
+        byte direction = random(0,6);
+        switch(direction) {
+            case 0: //level up
+                newPosition.level++;
+                break;
+            case 1: //level down
+                newPosition.level--;
+                break;
+            case 2: //x+
+                newPosition.x++;
+                break;
+            case 3: //x-
+                newPosition.x--;
+                break;
+            case 4:
+                newPosition.y++;
+                break;
+            case 5:
+                newPosition.y--;
+                break;
+        }
+        validDerection = true;
+        //checkvalidity - cube bounds
+        if (newPosition.level < 0 || newPosition.level >= levelCount) {
+            validDerection = false;
+        } else if (newPosition.x < 0 || newPosition.x >= sideLength || newPosition.y < 0 || newPosition.y >= sideLength ) {
+            validDerection =  false;
+        } else {
+            //checkvalidity - collision with snake's body
+            for (int i = 1; i < snakeMaxLen; i++) {
+                if (newPosition.level == snake[i].level && newPosition.y == snake[i].y && newPosition.x == snake[i].x) {
+                    validDerection = false;
+                    break;
+                }
+            }
+        }
+    }     
+
+    snake[0] = newPosition;
+}
 
 void changeStateRandomSnake() {
-    Position next = Position(-1,-1);
+    if (snakeLen == snakeMaxLen) {
+        //turn off the last segment of body
+        state[snake[snakeMaxLen - 1].level][snake[snakeMaxLen - 1].column()] = false;
+        snakeLen--;
+    }
+    //move body segments in array
+    for (int i = snakeMaxLen - 1; i > 0; i--) {
+        snake[i] = snake[i-1];
+    }
+    //determine new segment's position
     if (snakeLen == 0) {
-        next.column = random(0,16);
-        next.level = random(0,4);
-        snake[snakeLen] = next;
-    } 
+        snake[0].level = random(0,levelCount);
+        snake[0].x = random(0,4);
+        snake[0].y = random(0,4);
+    } else {
+        randomSnakeNextMove();
+    }
+
+    snakeLen++;
+    state[snake[0].level][snake[0].column()] = true;
     
 }
 
