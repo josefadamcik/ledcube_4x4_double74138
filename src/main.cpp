@@ -17,6 +17,7 @@
 #define PIN_L3 7
 
 #define PIN_BTN 2
+#define PIN_SPEED A0
 
 
 enum Mode { Random, Snake, AnimateLevels };
@@ -26,6 +27,8 @@ const byte sideLength = 4;
 
 const int showDelay = 1200;
 const int defaultFrameDuration = 250;
+const int minFrameDuration = 20;
+const int maxFrameDuration = 600;
 
 /**
  * State
@@ -101,19 +104,46 @@ void clearState() {
     }
 }
 
+/**
+ * Button interrupt and debouncing.
+ */ 
+
+const unsigned long debounceTime = 150;
+volatile boolean debouncing = false;
+volatile int lastButtonState = HIGH;
+volatile unsigned long changeDebounceStarted;
+volatile boolean triggerObserved = false;
+
+void btn_interrupt() {
+    int buttonState = digitalRead(PIN_BTN);
+    if (lastButtonState == HIGH && buttonState == LOW) { // button press, start deboucne
+        //start debouncing every time
+        changeDebounceStarted = millis();
+        debouncing = true;
+    } else if (lastButtonState == LOW && buttonState == HIGH) { 
+        if (debouncing && changeDebounceStarted + debounceTime < millis()) {
+            triggerObserved = true;
+            debouncing =  false;
+        }
+    }
+
+    lastButtonState = buttonState;
+}
+
+
 /******
  * Animate levels
  */
 
 void lightLevel(int l) {
-    for (byte i = 0; i < 16; i++) {
+    for (byte i = 0; i < columnCount; i++) {
         writeLed(i, l);
         delayMicroseconds(showDelay);
     }
 }
 
 void animateLevels() {
-    for (byte l = 0; l < 4; l++) {
+    for (byte l = 0; l < levelCount; l++) {
         for (int i = 0; i < 10; i++) {
             lightLevel(l);
         }
@@ -230,27 +260,6 @@ void changeStateRandomSnake() {
  * setup & loop
  */
 
-const unsigned long debounceTime = 150;
-volatile boolean debouncing = false;
-volatile int lastButtonState = HIGH;
-volatile unsigned long changeDebounceStarted;
-volatile boolean triggerObserved = false;
-
-void btn_interrupt() {
-    int buttonState = digitalRead(PIN_BTN);
-    if (lastButtonState == HIGH && buttonState == LOW) { // button press, start deboucne
-        //start debouncing every time
-        changeDebounceStarted = millis();
-        debouncing = true;
-    } else if (lastButtonState == LOW && buttonState == HIGH) { 
-        if (debouncing && changeDebounceStarted + debounceTime < millis()) {
-            triggerObserved = true;
-            debouncing =  false;
-        }
-    }
-
-    lastButtonState = buttonState;
-}
 
 
 void setup() {
@@ -277,12 +286,16 @@ void setup() {
     digitalWrite(PIN_L1, HIGH);
     digitalWrite(PIN_L2, HIGH);
     digitalWrite(PIN_L3, HIGH);
-    //Serial.begin(9600);
+    // Serial.begin(9600);
 
     clearState();
 }
 
 void loop() {
+    int speedInput = analogRead(PIN_SPEED);
+    frameDuration = map(speedInput, 0, 1023, minFrameDuration, maxFrameDuration);
+
+
     if (triggerObserved) {
         triggerObserved = false;
         currentMode = nextMode(currentMode);
