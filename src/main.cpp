@@ -11,34 +11,31 @@
 #define PIN_L2 6
 #define PIN_L3 7
 
+#define SHOW_DELAY 1000
+
+struct Position {
+    byte column;
+    byte level;
+    Position(byte c, byte l) : column(c), level(l) {}
+};
+
+enum Mode { Random, Snake };
 
 int lastLevel = -1;
+Mode currentMode = Random;
+int frameDuration = 200;
+
+
+boolean state[4][16] = {
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
 
 
 
-void setup() {
-    // put your setup code here, to run once:
-    pinMode(PIN_A, OUTPUT);
-    pinMode(PIN_B, OUTPUT);
-    pinMode(PIN_C, OUTPUT);
-    pinMode(PIN_S, OUTPUT);
-    pinMode(PIN_L0, OUTPUT);
-    pinMode(PIN_L1, OUTPUT);
-    pinMode(PIN_L2, OUTPUT);
-    pinMode(PIN_L3, OUTPUT);
 
-    digitalWrite(PIN_A, LOW);
-    digitalWrite(PIN_B, LOW);
-    digitalWrite(PIN_C, LOW);
-    digitalWrite(PIN_S, HIGH);
-
-    digitalWrite(PIN_L0, HIGH);
-    digitalWrite(PIN_L1, HIGH);
-    digitalWrite(PIN_L2, HIGH);
-    digitalWrite(PIN_L3, HIGH);
-    //Serial.begin(9600);
-
-}
 
 /**
  * @param column -  0-15
@@ -73,10 +70,25 @@ void writeLed(int column, int level) {
 
 }
 
+void writeState(long forMillis) {
+    long started = millis();
+    do {
+        for (int l = 0; l < 4; l++) {
+            for (int c = 0; c < 16; c++) {
+                if (state[l][c]) {
+                    writeLed(c, l);
+                    delayMicroseconds(SHOW_DELAY);
+                }
+            }
+        }
+    } while (started + forMillis > millis());
+
+} 
+
 void lightLevel(int l) {
     for (byte i = 0; i < 16; i++) {
         writeLed(i, l);
-        delayMicroseconds(1200);
+        delayMicroseconds(SHOW_DELAY);
     }
 }
 
@@ -95,10 +107,87 @@ void turnOff() {
     }
 }
 
-void loop() {
-    // writeLed(0,0);
-    // delay(2000);
-    animateLevels();
-    // turnOff();
-    // delay(2000);
+
+int  randomOnCount = 0;
+const int randomMaxOn = 5;
+
+void changeStateRandomWithLimit() {
+    boolean changed = false;
+    do {
+        int l = random(0,4);
+        int c = random(0,16);
+        if (randomOnCount < randomMaxOn  && !state[l][c])  {
+            state[l][c] = true;
+            randomOnCount++;
+            changed = true;
+        } else if (randomOnCount >= randomMaxOn  && state[l][c]) {
+            state[l][c] = false;
+            randomOnCount--;
+            changed = true;
+        }
+    } while (!changed);
 }
+
+
+
+byte snakeMaxLen = 3;
+byte snakeLen = 0;
+Position snake[] = {Position(-1,-1), Position(-1,-1), Position(-1,-1)};
+
+
+void changeStateRandomSnake() {
+    Position next = Position(-1,-1);
+    if (snakeLen == 0) {
+        next.column = random(0,16);
+        next.level = random(0,4);
+        snake[snakeLen] = next;
+    } 
+    
+}
+
+void clearState() {
+    for (int c = 0; c < 16; c++) {
+        for (int l = 0; l < 4; l++) {
+            state[l][c] = false;
+        }
+    }
+}
+
+void setup() {
+    // put your setup code here, to run once:
+    pinMode(PIN_A, OUTPUT);
+    pinMode(PIN_B, OUTPUT);
+    pinMode(PIN_C, OUTPUT);
+    pinMode(PIN_S, OUTPUT);
+    pinMode(PIN_L0, OUTPUT);
+    pinMode(PIN_L1, OUTPUT);
+    pinMode(PIN_L2, OUTPUT);
+    pinMode(PIN_L3, OUTPUT);
+
+    digitalWrite(PIN_A, LOW);
+    digitalWrite(PIN_B, LOW);
+    digitalWrite(PIN_C, LOW);
+    digitalWrite(PIN_S, HIGH);
+
+    digitalWrite(PIN_L0, HIGH);
+    digitalWrite(PIN_L1, HIGH);
+    digitalWrite(PIN_L2, HIGH);
+    digitalWrite(PIN_L3, HIGH);
+    //Serial.begin(9600);
+
+    clearState();
+}
+
+void loop() {
+    switch(currentMode) {
+        case Random:
+            changeStateRandomWithLimit();
+            break;
+        case Snake:
+            changeStateRandomSnake();
+            break;
+    }
+    
+    writeState(frameDuration);
+}
+
