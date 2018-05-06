@@ -16,6 +16,8 @@
 #define PIN_L2 6
 #define PIN_L3 7
 
+#define PIN_BTN 2
+
 
 enum Mode { Random, Snake, AnimateLevels };
 const byte levelCount = 4;
@@ -40,6 +42,14 @@ boolean state[levelCount][columnCount] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
+
+Mode nextMode(Mode mode) {
+    switch(mode) {
+        case Random: return Snake;
+        case Snake: return AnimateLevels;
+        case AnimateLevels: return Random;
+    }
+}
 
 /****** 
  * LED control
@@ -220,6 +230,28 @@ void changeStateRandomSnake() {
  * setup & loop
  */
 
+const unsigned long debounceTime = 150;
+volatile boolean debouncing = false;
+volatile int lastButtonState = HIGH;
+volatile unsigned long changeDebounceStarted;
+volatile boolean triggerObserved = false;
+
+void btn_interrupt() {
+    int buttonState = digitalRead(PIN_BTN);
+    if (lastButtonState == HIGH && buttonState == LOW) { // button press, start deboucne
+        //start debouncing every time
+        changeDebounceStarted = millis();
+        debouncing = true;
+    } else if (lastButtonState == LOW && buttonState == HIGH) { 
+        if (debouncing && changeDebounceStarted + debounceTime < millis()) {
+            triggerObserved = true;
+            debouncing =  false;
+        }
+    }
+
+    lastButtonState = buttonState;
+}
+
 
 void setup() {
     // put your setup code here, to run once:
@@ -231,6 +263,10 @@ void setup() {
     pinMode(PIN_L1, OUTPUT);
     pinMode(PIN_L2, OUTPUT);
     pinMode(PIN_L3, OUTPUT);
+
+    pinMode(PIN_BTN, INPUT_PULLUP);
+
+    attachInterrupt(digitalPinToInterrupt(PIN_BTN), btn_interrupt, CHANGE);
 
     digitalWrite(PIN_A, LOW);
     digitalWrite(PIN_B, LOW);
@@ -247,6 +283,13 @@ void setup() {
 }
 
 void loop() {
+    if (triggerObserved) {
+        triggerObserved = false;
+        currentMode = nextMode(currentMode);
+        clearState();
+        writeState(frameDuration);
+    }
+
     boolean shouldWriteState = true;
     switch(currentMode) {
         case AnimateLevels:
