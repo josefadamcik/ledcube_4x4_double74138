@@ -2,22 +2,53 @@
 #include "position.h"
 
 
+
 /****
  * Consants and definitions
  */
 
-#define PIN_A 8
-#define PIN_B 9
-#define PIN_C 10
-#define PIN_S 11
 
-#define PIN_L0 4
-#define PIN_L1 5
-#define PIN_L2 6
-#define PIN_L3 7
+// === UNO
+ 
+// #define PIN_A 8
+// #define PIN_B 9
+// #define PIN_C 10
+// #define PIN_S 11
 
-#define PIN_BTN 2
-#define PIN_SPEED A0
+// #define PIN_L0 4
+// #define PIN_L1 5
+// #define PIN_L2 6
+// #define PIN_L3 7
+
+// #define PIN_BTN 2
+// #define PIN_SPEED A0
+
+// ===  ATMEL ATTINY84 / ARDUINO
+//
+//                           +-\/-+
+//                     VCC  1|    |14  GND
+//             (D 10)  PB0  2|    |13  AREF (D  0)
+//             (D  9)  PB1  3|    |12  PA1  (D  1) 
+//                     PB3  4|    |11  PA2  (D  2) 
+//  PWM  INT0  (D  8)  PB2  5|    |10  PA3  (D  3) 
+//  PWM        (D  7)  PA7  6|    |9   PA4  (D  4) 
+//  PWM        (D  6)  PA6  7|    |8   PA5  (D  5)        PWM
+
+#define PIN_A 1
+#define PIN_B 2
+#define PIN_C 3
+#define PIN_S 4
+
+#define PIN_L0 5
+#define PIN_L1 6
+#define PIN_L2 7
+#define PIN_L3 10
+
+
+#define PIN_BTN 8 //int0s
+#define PIN_SPEED A0 //D0
+
+// EOF PINS
 
 
 enum Mode { Random, Snake, AnimateLevels };
@@ -53,6 +84,14 @@ Mode nextMode(Mode mode) {
         case AnimateLevels: return Random;
     }
 }
+uint8_t level2pin(uint8_t l) {
+    switch (l) {
+        case 0: return PIN_L0;
+        case 1: return PIN_L1;
+        case 2: return PIN_L2;
+        case 3: return PIN_L3;
+    }
+}
 
 /****** 
  * LED control
@@ -65,9 +104,9 @@ Mode nextMode(Mode mode) {
 void writeLed(int column, int level) {
         if (lastLevel != level) {
             if (lastLevel >= 0) {
-                digitalWrite(PIN_L0 + lastLevel, HIGH);
+                digitalWrite(level2pin(lastLevel), HIGH);
             }
-            digitalWrite(PIN_L0 + level, LOW);
+            digitalWrite(level2pin(level), LOW);
             lastLevel = level;
         }
         //select first or second 74138 ic
@@ -275,7 +314,9 @@ void setup() {
 
     pinMode(PIN_BTN, INPUT_PULLUP);
 
-    attachInterrupt(digitalPinToInterrupt(PIN_BTN), btn_interrupt, CHANGE);
+    //todo: return btn functionality
+    //attachInterrupt(digitalPinToInterrupt(PIN_BTN), btn_interrupt, CHANGE);
+    attachInterrupt(0, btn_interrupt, CHANGE);
 
     digitalWrite(PIN_A, LOW);
     digitalWrite(PIN_B, LOW);
